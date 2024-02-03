@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Awesome Shoe Shop</title>
+    
+      <link rel="stylesheet" href="styles/form.css">
+    
+  </head>
+  
+  <body>
+  
+    <div class="container">
+      <h2>Find the best price for your favorite shoes!</h2>
+      <form  action="/submit" method="post"  id="form" >
+        <label for="model">Model:</label>
+        <input type="text" id="model" name="model" placeholder="E.g., Nike Air Max">
+        <span id="modelError" class="error-message"></span> <!-- Сообщение об ошибке для модели -->
+      
+        <label for="category">Category:</label>
+        <input type="text" id="category" name="category"  placeholder="man/woman/child">
+        <span id="categoryError" class="error-message"></span> <!-- Сообщение об ошибке для категории -->
+       
+        <button type="submit">Find Price</button>
+      </form>
+    </div>
+  
+    <!--<script src="validator.js" type="module"></script>-->
+    <script>
+      /*var _a, _b, _c, _d;
+      function validateForm() {
+       var _a, _b;
+     
+    const model = (_a = document.getElementById('model')) === null || _a === void 0 ? void 0 : _a.value.trim();
+    const category = (_b = document.getElementById('category')) === null || _b === void 0 ? void 0 : _b.value.trim();
+    const modelError = document.getElementById('modelError');
+    const categoryError = document.getElementById('categoryError');
+    const modelField = document.getElementById('model');
+    const categoryField = document.getElementById('category');
+    modelError.textContent = ''; // Очищаем сообщения об ошибке
+    categoryError.textContent = '';
+    modelField.classList.remove('error'); // Убираем подсветку ошибки
+    categoryField.classList.remove('error');
+    if (!/^[a-zA-Z0-9\s]+$/.test(model)) {
+        modelError.textContent = 'Please write a model.'; // Устанавливаем текст ошибки для модели
+        modelField.classList.add('error'); // Добавляем подсветку ошибки
+    }
+    if (!['man', 'woman', 'child'].includes(category)) {
+        categoryError.textContent = 'Please write a valid category (man, woman, or child).'; // Устанавливаем текст ошибки для категории
+        categoryField.classList.add('error'); // Добавляем подсветку ошибки
+    }
+
+   
+  }
+ // document.getElementById('form').addEventListener('submit', validateForm);
+// Вызов функции валидации при изменении содержимого полей и потере фокуса
+(_a = document.getElementById('model')) === null || _a === void 0 ? void 0 : _a.addEventListener('input', validateForm);
+(_b = document.getElementById('model')) === null || _b === void 0 ? void 0 : _b.addEventListener('blur', validateForm);
+(_c = document.getElementById('category')) === null || _c === void 0 ? void 0 : _c.addEventListener('input', validateForm);
+(_d = document.getElementById('category')) === null || _d === void 0 ? void 0 : _d.addEventListener('blur', validateForm);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+function submitButton() {
+  
+    const model = document.getElementById('model').value.trim();
+    const category = document.getElementById('category').value.trim();
+    if (!/^[a-zA-Z0-9\s]+$/.test(model) || !['man', 'woman', 'child'].includes(category)) {
+     
+        alert('Please correct the errors before submitting.');
+        return ;
+    }
+    
+}*/
+        var _a, _b, _c, _d;
+        function validateForm() {
+            var _a, _b;
+
+            const model = (_a = document.getElementById('model')) === null || _a === void 0 ? void 0 : _a.value.trim();
+            const category = (_b = document.getElementById('category')) === null || _b === void 0 ? void 0 : _b.value.trim();
+            const modelError = document.getElementById('modelError');
+            const categoryError = document.getElementById('categoryError');
+            const modelField = document.getElementById('model');
+            const categoryField = document.getElementById('category');
+            modelError.textContent = '';
+            categoryError.textContent = '';
+            modelField.classList.remove('error');
+            categoryField.classList.remove('error');
+
+            if (!/^[a-zA-Z0-9\s]+$/.test(model)) {
+                modelError.textContent = 'Please write a valid model.';
+                modelField.classList.add('error');
+            }
+
+            if (!['man', 'woman', 'child'].includes(category)) {
+                categoryError.textContent = 'Please write a valid category (man, woman, or child).';
+                categoryField.classList.add('error');
+            }
+
+            return !modelError.textContent && !categoryError.textContent;
+        }
+
+        document.getElementById('form').addEventListener('submit', function (event) {
+            if (!validateForm()) {
+                event.preventDefault();
+                alert('Please correct the errors before submitting.');
+            }
+        });
+
+        (_a = document.getElementById('model')) === null || _a === void 0 ? void 0 : _a.addEventListener('input', validateForm);
+        (_b = document.getElementById('model')) === null || _b === void 0 ? void 0 : _b.addEventListener('blur', validateForm);
+        (_c = document.getElementById('category')) === null || _c === void 0 ? void 0 : _c.addEventListener('input', validateForm);
+        (_d = document.getElementById('category')) === null || _d === void 0 ? void 0 : _d.addEventListener('blur', validateForm);
+
+    </script>
+  
+  </body>
+  
+  </html>
