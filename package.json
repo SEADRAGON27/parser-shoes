@@ -1,0 +1,40 @@
+{
+  "name": "parser-shoes-prices",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start-prod": "node built/server.js",
+    "lint": "eslint --ext .ts src/app.ts",
+    "lint:fix": "prettier --write \"**/*.ts\""
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bull": "^4.12.2",
+    "chalk": "^5.3.0",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "path": "^0.12.7",
+    "pino": "^8.17.2",
+    "puppeteer": "^21.9.0",
+    "tslog": "^4.9.2"
+  },
+  "devDependencies": {
+    "@types/bull": "^4.10.0",
+    "@types/ejs": "^3.1.5",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.8.7",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "eslint": "^8.52.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "nodemon": "^3.0.3",
+    "prettier": "^3.0.3",
+    "ts-node": "^10.9.1",
+    "ts-watch": "^1.0.8",
+    "typescript": "^5.2.2"
+  }
+}
