@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Страница с товарами</title>
+  
+  <link rel="stylesheet" href="./styles/items.css">
+</head>
+
+<body>
+  <div id="products-container"></div>
+  <% items.forEach(function(product) { %>
+    <div class="product">
+      <img src="<%= product.image %>" alt="<%= product.name %>">
+      <a href="<%= product.link %>"><%= product.name %></a>
+      <div class="price"><%= `${product.price}₴` %></div>
+    </div>
+  <% }); %>
+</div>
+  
+  <script>
+     document.addEventListener('DOMContentLoaded', function () {
+        const productsContainer = document.getElementById('products-container');
+        productsContainer.addEventListener('click', function (event) {
+            const clickedElement = event.target;
+
+            
+            if (clickedElement.tagName === 'IMG') {
+              
+                const productElement = clickedElement.closest('.product');
+
+                
+                const productLink = productElement.querySelector('a');
+
+               
+                if (productLink) {
+                    window.location.href = productLink.href;
+                }
+            }
+        });
+    });
+  </script> 
+   
+
+</body>
+
+</html>
