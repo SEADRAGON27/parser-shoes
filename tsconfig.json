@@ -106,13 +106,10 @@
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
     "skipLibCheck": true                           /* Skip type checking all .d.ts files. */
   },
-  "include": ["src/**/*.ts","src/client/views/*.html","src/client/views/styles/*.css","src/**/*.json"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"], // Исключение директории node_modules
   "lib":["esnext"],
   "ts-node":{
-    
-    "esm":true
+     "esm":true
   },
-
-
 }
