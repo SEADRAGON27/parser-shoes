@@ -10,39 +10,33 @@ import { logger } from './logs/logger.js';
 const app = express();
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirPath = dirname(currentFilePath);
-const jsonFilePath = join(currentDirPath, 'client', 'views');
-app.use(express.static(jsonFilePath));
+const filePath = join(currentDirPath, 'client', 'views');
+app.use(express.static(filePath));
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req: Request, res: Response) => {
-    res.sendFile(join(jsonFilePath, 'index.html'));
+    res.sendFile(join(filePath, 'index.html'));
 });
 
 // eslint-disable-next-line no-unused-vars
-app.post('/submit',(req: Request, res: Response,next:NextFunction) => {
-    res.sendFile(join(jsonFilePath,'loadingPage.html'));
-    next();
-});
-
-app.get('/items',async (req: Request, res: Response) => {
+app.get('/submit',async (req: Request, res: Response) => {
     try {
         const userData: userDTO = req.body;
-        console.log(userData);
         const items = await handler.parseAll(userData);
         if (items) {
             const renderedHtml = await ejs.renderFile(
-                join(jsonFilePath, 'items.ejs'),
+                join(filePath, 'items.ejs'),
                 { items: items },
             );
-            res.send(renderedHtml);
             logger.info('Model is found');
+            res.send(renderedHtml);
         }else{
             logger.info('Model is not found');
-            res.sendFile(join(jsonFilePath,'not-found.html'));
+            res.sendFile(join(filePath,'not-found.html'));
         }
     } catch (error) {
         logger.error(`Error server:${error}`);
-        res.status(500).sendFile(join(jsonFilePath,'server-error.html'));
+        res.status(500).sendFile(join(filePath,'server-error.html'));
     }
 });
 
