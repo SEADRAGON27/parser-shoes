@@ -6,7 +6,6 @@ import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js'
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
 class Adidas implements IScraperInterface {
-    constructor() {}
     async parse(userData: userDTO) {
         let itemsLinks: itemsLinks;
         const userModel = userData.model.replace(/^(\S+\s*)/, '').trim();
@@ -21,7 +20,7 @@ class Adidas implements IScraperInterface {
         await wait(2000);
         const filterButton = await page.$('.filter__btn--icon');
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site4.js`);
             await browser.close();
             return;
