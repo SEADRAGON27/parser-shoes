@@ -24,7 +24,7 @@ class YesOriginals implements IScraperInterface {
         await wait(4000);
         const filterButton = page.$('[data-option-id="10021"]');
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site12.js`);
             await browser.close();
             return;
