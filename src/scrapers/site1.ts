@@ -23,7 +23,7 @@ export class Nike implements IScraperInterface {
             'body > div.page__body > div.page__content > div > div > div > div.content__sidebar.hidden-xs > div > div > ul > li:nth-child(1) > ul > li > a',
         );
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site1.js`);
             await browser.close();
             return;
