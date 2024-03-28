@@ -7,8 +7,7 @@ import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js'
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
 class NewBalance implements IScraperInterface {
-    constructor() {}
-    async parse(userData: userDTO) {
+  async parse(userData: userDTO) {
         let itemsLinks: itemsLinks;
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
@@ -20,7 +19,7 @@ class NewBalance implements IScraperInterface {
         await wait(3000);
         const filterButton = await page.$('.icon-filters');
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site2.js`);
             await browser.close();
             return;
