@@ -46,7 +46,7 @@ class Intertop implements IScraperInterface {
             '#app > div.header-container.catalog-section-container > div > div.catalog-wrap > div.filter-mobile.opened > div.mobile-filter-menu.opened > div.mobile-filter-menu-in > ul > li.filter-select.filter-prop-brands.one-filter.opened > div > ul > li > a > label > span.styled-checkbox.styled-checkbox--v2',
         );
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site9.js`);
             await browser.close();
             return;
