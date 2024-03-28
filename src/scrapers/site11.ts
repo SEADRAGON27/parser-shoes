@@ -35,7 +35,7 @@ class PRM implements IScraperInterface {
             '.ProductItem__productCard__8ivfZ div:nth-child(1) a',
         );
 
-        if (checkAvaliable === null) {
+        if (!checkAvaliable) {
             logger.info(`Not found ${userData.model} in site11.js`);
             await browser.close();
             return;
