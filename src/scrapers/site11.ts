@@ -6,8 +6,7 @@ import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js'
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
 class PRM implements IScraperInterface {
-    constructor() {}
-    async parse(userData: userDTO) {
+   async parse(userData: userDTO) {
         let itemsLinks: itemsLinks;
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
