@@ -20,7 +20,7 @@ class DeltaSport implements IScraperInterface {
         await wait(2000);
         const filterButton = await page.$('.s_item-top_inf');
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site7.js`);
             await browser.close();
             return;
