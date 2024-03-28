@@ -33,7 +33,7 @@ class Answear implements IScraperInterface {
         await wait(5000);
         const filterButton = await page.$('.multiTheme-icon-settings');
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site6.js`);
             await browser.close();
             return;
