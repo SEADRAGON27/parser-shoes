@@ -31,7 +31,7 @@ class Intersport implements IScraperInterface {
                 return texts;
             },
         );
-        if (items.length == checkAvaliable.length || filterButton === null) {
+        if (items.length == checkAvaliable.length || !filterButton) {
             logger.info(`Not found ${userData.model} in site10.js`);
             await browser.close();
             return;
