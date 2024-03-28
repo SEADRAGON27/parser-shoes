@@ -7,8 +7,7 @@ import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js'
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
 class MdFashion implements IScraperInterface {
-    constructor() {}
-    async parse(userData: userDTO) {
+ async parse(userData: userDTO) {
         let itemsLinks: itemsLinks;
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
@@ -24,7 +23,7 @@ class MdFashion implements IScraperInterface {
         await wait(3000);
         const filterButton = await page.$('.mobile-filters div:nth-child(1)');
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site3.js`);
             await browser.close();
             return;
