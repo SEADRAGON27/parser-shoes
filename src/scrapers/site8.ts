@@ -19,7 +19,7 @@ class MegaSport implements IScraperInterface {
             'body > div.pure-modal-backdrop > div > div > svg > path:nth-child(2)',
         );
         
-        if (saleButton !== null) {
+        if (saleButton) {
             page.click(
                 'body > div.pure-modal-backdrop > div > div > svg > path:nth-child(2)',
             );
@@ -33,7 +33,7 @@ class MegaSport implements IScraperInterface {
         await wait(3000);
         const filterButton = await page.$('.WiOXQg');
         
-        if (filterButton === null) {
+        if (!filterButton) {
             logger.info(`Not found ${userData.model} in site8.js`);
             await browser.close();
             return;
