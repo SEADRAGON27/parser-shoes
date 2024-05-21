@@ -1,4 +1,4 @@
-export interface userDTO {
+export interface FindModelDto {
     model: string;
-    category: string;
+    gender: string;
 }

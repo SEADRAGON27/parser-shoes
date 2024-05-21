@@ -1,197 +1,203 @@
+/* eslint-disable no-prototype-builtins */
 /* eslint-disable no-case-declarations */
 import puppeteer from 'puppeteer';
-import { userDTO } from '../utils/interfaces/userDTO.interface.js';
-import { itemsLinks } from '../utils/interfaces/itemsLinks.interface.js';
-import { file } from '../data/file.js';
-import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
+import { FindModelDto  } from '../utils/interfaces/userDTO.interface.js';
+import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
+import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
-class MdFashion implements IScraperInterface {
- async parse(userData: userDTO) {
-        let itemsLinks: itemsLinks;
+import { FILTER_BUTTON,GENDER_MAP,GENDER_SELECTORS,ICON_SEARCH,IMAGE,LINK,LIST_GENDERS,MODEL_NAME,NEXT_BUTTON,NOT_FOUND_MODEL,OPEN_GENDER_FILTER,PRICE,PRICE_NEW,RESULT_BUTTON,SEARCH_STRING,URL,OPERATION_HAS_BEEN_SUCCESSFUL} from '../constants/site3.js';
+import { dbSetValues, dbSetValue } from '../db/dbSet.js';
+import { dbGetValue, dbGetValues } from '../db/dbGet.js';
+import { NOT_FOUND } from '../constants/db.js';
+
+class MdFashion implements ScraperInterface {
+    
+    async parse(userData: FindModelDto ): Promise<itemLinks[] | null> {
+        
+        const key = userData.model + ':3';
+        
+        const resultG = await dbGetValues(key);
+        const productAvailabilityOnTheWebsite = await dbGetValue(key);
+        
+        if(resultG){
+            
+            logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+            return resultG;
+        
+        }
+        
+        if(productAvailabilityOnTheWebsite) return null;
+
+        const userModelName = userData.model.toLowerCase().trim();
+        
         const browser = await puppeteer.launch({ headless: true });
+
         const page = await browser.newPage();
-        await page.goto('https://md-fashion.ua', {
+
+        await page.goto(URL, {
             waitUntil: 'domcontentloaded',
         });
+
         await wait(2000);
-        await page.click('.mobile-search');
-        await wait(2000);
-        await page.type('input[type="search"]', userData.model);
+
+        await page.click(ICON_SEARCH);
+        await page.waitForSelector(ICON_SEARCH);
+
+        await page.type(SEARCH_STRING, userData.model);
         await page.keyboard.press('Enter');
-        await page.waitForSelector('input[type="search"]');
-        await wait(3000);
-        const filterButton = await page.$('.mobile-filters div:nth-child(1)');
-        
-        if (!filterButton) {
-            logger.info(`Not found ${userData.model} in site3.js`);
+
+        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+
+        const checkAvailability = await page.$(FILTER_BUTTON);
+
+        if (!checkAvailability) {
+            
+            await dbSetValue(key,NOT_FOUND);
+            logger.info(NOT_FOUND_MODEL + userModelName);
             await browser.close();
-            return;
-        }
+            return null;
         
-        await page.click('.mobile-filters div:nth-child(1)');
-        await wait(1000);
-        await page.click('.filters-popup div:nth-child(5)');
-        await wait(1000);
-
-        const categories = await page.$$eval(
-            '.filters__list__link',
-            (listElements: Element[]) => {
-                const listOfGenders = [];
-                for (let i = 0; i < listElements.length; i++) {
-                    switch (listElements[i].textContent) {
-                    case 'Чоловікам':
-                        listOfGenders.push('man');
-                        break;
-                    case 'Жінкам':
-                        listOfGenders.push('woman');
-                        break;
-                    case 'Хлопчикам':
-                        listOfGenders.push('child');
-                        break;
-                    case 'Дівчаткам':
-                        listOfGenders.push('child');
-                        break;
-                    }
-                }
-                return listOfGenders;
-            },
-        );
-
-        await wait(1000);
-        switch (userData.category) {
-        case 'man':
-            switch (categories?.length) {
-            case 4:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(4)',
-                );
-                await wait(1000);
-                break;
-            case 2:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(2)',
-                );
-                await wait(1000);
-                break;
-            case 1:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(1)',
-                );
-                await wait(1000);
-                break;
-            }
-            await page?.click(
-                '.filters-popup__buttons button:nth-child(1)',
-            );
-            break;
-        case 'woman':
-            switch (categories?.length) {
-            case 4:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(2)',
-                );
-                await wait(1000);
-                break;
-            case 2:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(1)',
-                );
-                await wait(1000);
-                break;
-            case 1:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(1)',
-                );
-                await wait(1000);
-                break;
-            }
-            await page?.click(
-                '.filters-popup__buttons button:nth-child(1)',
-            );
-            break;
-        case 'child':
-            switch (categories?.length) {
-            case 4:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(1)',
-                );
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(3)',
-                );
-                await wait(1000);
-                break;
-            case 2:
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(1)',
-                );
-                await page?.click(
-                    '.filters__list__scroll div:nth-child(2)',
-                );
-                await wait(1000);
-                break;
-            }
-            await page?.click(
-                '.filters-popup__buttons button:nth-child(1)',
-            );
-            break;
         }
-        await wait(2000);
+
+        page.click(FILTER_BUTTON);
+
+        await wait(1000);
+
+        await page.click(OPEN_GENDER_FILTER);
+        await page.waitForSelector(OPEN_GENDER_FILTER);
+
+        const genders = await page.$$eval(
+            LIST_GENDERS,
+            
+            (listElements: Element[], GENDER_MAP) => {
+                
+                return listElements
+                    .map((element) => {
+                        const textContent = element.textContent;
+
+                        if (textContent !== null && GENDER_MAP.hasOwnProperty(textContent)) {
+                            
+                            return GENDER_MAP[textContent];
+                        
+                        }
+                        
+                        return null;
+                    
+                    }).filter((el) => el !== null);
+            },
+            GENDER_MAP,
+        );
+        
+        await wait(1000);
+
+        const gendersLength = genders?.length;
+        const gender = userData.gender;
+
+        const actions = GENDER_SELECTORS[gender][gendersLength];
+
+        if (Array.isArray(actions)) {
+            
+            for (const action of actions) {
+                await page?.click(action);
+            }
+        
+        } else {
+            
+            await page?.click(actions);
+        
+        }
+
+        await wait(1000);
+
+        await page?.click(RESULT_BUTTON);
+
+        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+        
+        const items: itemLinks[] = [];
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const elements = await page.$$('.products-item__link'); // Находим все элементы с классом 'product-cut__title-link'
-            const priceElements = await page.$$('.product-info__price');
-            const images = await page.$$('.responsive-image picture img');
+            
+            const modelNameElements = await page.$$(MODEL_NAME);
+            const linkElements = await page.$$(LINK);
+            const priceElements = await page.$$(PRICE);
+            const imageElements = await page.$$(IMAGE);
 
-            for (let i = 0; i < elements.length; i++) {
-                const element = elements[i];
-                const priceElement = priceElements[i];
-                const image = images[i];
+            for (let i = 0; i < linkElements.length; i++) {
+                
+                const modelName = modelNameElements[i];
+                const productLink = linkElements[i];
+                const productPrice = priceElements[i];
+                const productImage = imageElements[i];
 
-                const link = await element.evaluate(
-                    (el: Element): string | null => el.getAttribute('href'),
+                const siteModelName = await modelName.evaluate(
+                    (el: Element): string => el.textContent?.toLowerCase().trim() || '',
                 );
+               
+                if (siteModelName.includes(userModelName) ||
+                    userModelName.includes(siteModelName)) {
+                   
+                    const link = await productLink.evaluate(
+                        (el: Element): string | null => el.getAttribute('href'),
+                    );
 
-                const imageElement = await image.evaluate(
-                    (el: Element): string | null => el.getAttribute('src'),
-                );
+                    const image = await productImage.evaluate(
+                        (el: Element): string | null => el.getAttribute('src'),
+                    );
 
-                const priceOld = await priceElement.evaluate(
-                    (el: Element): string | undefined =>
-                        el.textContent?.replace(/\D/g, ''),
-                );
-                const priceNew = await priceElement.$(
-                    '.product-info__price__text_new',
-                );
-                let priceModel: string | undefined = '';
-                if (priceNew === null) {
-                    priceModel = priceOld;
-                } else {
-                    priceModel = await priceNew.evaluate(
+                    const priceOld = await productPrice.evaluate(
                         (el: Element): string | undefined =>
                             el.textContent?.replace(/\D/g, ''),
                     );
+
+                    const priceNew = await productPrice.$(PRICE_NEW);
+
+                    let modelPrice: string | undefined = '';
+
+                    if (priceNew === null) {
+                        
+                        modelPrice = priceOld;
+                    
+                    } else {
+                        
+                        modelPrice = await priceNew.evaluate(
+                            (el: Element): string | undefined =>
+                                el.textContent?.replace(/\D/g, ''),
+                        );
+                    
+                    }
+
+                    const itemLinks: itemLinks = {
+                        link: link,
+                        price: modelPrice,
+                        image: image,
+                    };
+                    
+                    items.push(itemLinks);
                 }
-
-                itemsLinks = {
-                    link: link,
-                    price: priceModel,
-                    image: imageElement,
-                };
-                await file('write', itemsLinks);
             }
+            
+            const nextButton = await page.$(NEXT_BUTTON);
 
-            const nextButton = await page.$(
-                '.pagination__button btn btn--accent',
-            );
             if (nextButton) {
-                await page.click('.pagination__button btn btn--accent');
+                
+                await page.click(NEXT_BUTTON);
+            
             } else {
-                logger.info('The operation was completed successfully in site3.js');
+                
                 await browser.close();
                 break;
+            
             }
         }
+        
+        const resultS = await dbSetValues(key,items);
+       
+        logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+        
+        return resultS;
     }
 }
+
 export const mdFashion = new MdFashion();
+

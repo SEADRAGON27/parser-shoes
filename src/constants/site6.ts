@@ -1,0 +1,16 @@
+export const URL = 'https://deltasport.ua';
+export const ICON_SEARCH = '.b_nav-b_s-search';
+export const SEARCH_STRING = 'input[type="text"]';
+export const PRODUCTS_ON_THE_PAGE = '.count-prod';
+export const LINK =  '.s_item-top_inf a';
+export const PRICE = '.price';
+export const IMAGE = '.js-product_img source';
+export const PRICE_NEW = '.sale';
+export const PRICE_OLD = '.f_price';
+export const NEXT_BUTTON = '.next';
+export const GENDERS_AVAILABILITY = '.filter-item';
+export const GENDERS= '.filter-item .filter-title';
+export const CATEGORIES = '.filter-content ul .elem-it';
+export const OPERATION_HAS_BEEN_SUCCESSFUL = 'The operation has been successful in site6';
+export const NOT_FOUND_MODEL = 'According to the search results, nothing was found in site6, your request:';
+export const HREF = 'a';

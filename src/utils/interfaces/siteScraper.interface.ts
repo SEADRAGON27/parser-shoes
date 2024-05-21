@@ -1,8 +1,9 @@
-import { userDTO } from './userDTO.interface.js';
+/* eslint-disable no-unused-vars */
+import { itemLinks } from './itemsLinks.interface.js';
+import { FindModelDto } from './userDTO.interface.js';
 
-export interface IScraperInterface {
+export interface ScraperInterface {
     parse: (
-        // eslint-disable-next-line no-unused-vars
-        userData: userDTO,
-    ) => void;
+       userData: FindModelDto,
+    ) => Promise<itemLinks[] | null>;
 }

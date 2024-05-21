@@ -1,190 +1,163 @@
+/* eslint-disable quotes */
 import puppeteer from 'puppeteer';
-import { userDTO } from '../utils/interfaces/userDTO.interface.js';
-import { itemsLinks } from '../utils/interfaces/itemsLinks.interface.js';
-import { file } from '../data/file.js';
-import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
+import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
+import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
+import { CLOSE_COOKIE, CLOSE_SALE_BANNER, GENDER_SELECTORS, IMAGE, LINK, MODEL_NAME, NEXT_BUTTON, NOT_FOUND_MODEL, OPERATION_HAS_BEEN_SUCCESSFUL, PRICE, PRICE_NEW, PRICE_OLD, PRODUCT, SEARCH_STRING, URL } from '../constants/site10.js';
+import { FindModelDto } from '../utils/interfaces/userDTO.interface.js';
+import { dbGetValue, dbGetValues } from '../db/dbGet.js';
+import { dbSetValue, dbSetValues } from '../db/dbSet.js';
+import { NOT_FOUND } from '../constants/db.js';
 
-class Intersport implements IScraperInterface {
-    async parse(userData: userDTO) {
-        let itemsLinks: itemsLinks;
+
+class PRM implements ScraperInterface {
+    
+    async parse(userData: FindModelDto ): Promise<itemLinks[] | null> {
+        
+        const key = userData.model + ':10';
+        
+        const resultG = await dbGetValues(key);
+        const productAvailabilityOnTheWebsite = await dbGetValue(key);
+        
+        if(resultG){
+            
+            logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+            return resultG;
+        
+        }
+        
+        if(productAvailabilityOnTheWebsite) return null;
+        
+        const userModelName = userData.model.toLowerCase().trim();
+        
         const browser = await puppeteer.launch({ headless: true });
+        
         const page = await browser.newPage();
-        await page.goto('https://intersport.ua', {
+        
+        await page.goto(URL,{
             waitUntil: 'domcontentloaded'
         });
-        await wait(1000);
-        await page.type('.searchInput___aZ57Z', userData.model);
-        await page.keyboard.press('Enter');
+        
         await wait(4000);
-        const filterButton = page.$('.btn___3F1Ek');
-        const items = await page.$$('.wrapper___4CoMj');
-        const checkAvaliable = await page.$$eval(
-            '.shopAvailable___3_rYr span',
-            (elements: Element[]) => {
-                const texts = elements.map((element: Element) => {
-                    if (element.textContent !== null) {
-                        return element.textContent;
-                    }
-                });
-                return texts;
-            },
-        );
-        if (items.length == checkAvaliable.length || !filterButton) {
-            logger.info(`Not found ${userData.model} in site10.js`);
-            await browser.close();
-            return;
-        }
-
-        await page.click('.btn___3F1Ek');
-        await wait(4000);
-        await page.click('.filtersList___2BqIx div:nth-child(4)');
-
-        const categories = await page.$$eval(
-            '.checkbox___2KocV label:not(.checkbox_hide___1vP7z label)',
-            (listElements: Element[]): string[] => {
-                const listOfGenders = [];
-                for (let i = 0; i < listElements.length; i++) {
-                    switch (listElements[i].textContent) {
-                    case 'чоловіча':
-                        listOfGenders.push('man');
-                        break;
-                    case 'жіноча':
-                        listOfGenders.push('woman');
-                        break;
-                    case 'діти':
-                        listOfGenders.push('child');
-                        break;
-                    case 'унісекс':
-                        listOfGenders.push('unisex');
-                    }
-                }
-                return listOfGenders;
-            },
-        );
+        
+        await page.click(CLOSE_COOKIE);
+        
+        const genderFilter = GENDER_SELECTORS[userData.gender];
+        page.click(genderFilter);
+        
         await wait(3000);
-        switch (userData.category) {
-        case 'man':
-            if (categories.includes('man')) {
-                await page.click(
-                    '.filterValuesList___25QWx div:nth-child(6) .checkboxWrapper_small___1fVHV',
-                );
-                await page.click(
-                    '#__next > div.CookieMessage___R6YKh > div > div.buttons___30eld > button',
-                );
-                await page.click(
-                    '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.subheaderMobile___MhAbC > div.menu___xfr1m > div > div.wrapper___lejhK > div > div.bottom___24gk2 > button',
-                );
-                await page.click(
-                    '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.subheaderMobile___MhAbC > div.menu___xfr1m > div > div.wrapper___lejhK > div.bottom___24gk2 > button',
-                );
-            }
-            break;
-        case 'woman':
-            if (categories.includes('woman')) {
-                await page.click(
-                    '.filterValuesList___25QWx div:nth-child(3) .checkboxWrapper_small___1fVHV',
-                );
-                await page.click(
-                    '#__next > div.CookieMessage___R6YKh > div > div.buttons___30eld > button',
-                );
-                await page.click(
-                    '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.subheaderMobile___MhAbC > div.menu___xfr1m > div > div.wrapper___lejhK > div > div.bottom___24gk2 > button',
-                );
-                await page.click(
-                    '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.subheaderMobile___MhAbC > div.menu___xfr1m > div > div.wrapper___lejhK > div.bottom___24gk2 > button',
-                );
-            }
-
-            break;
-        case 'child':
-            if (categories.includes('child')) {
-                await page.click(
-                    '.filterValuesList___25QWx div:nth-child(2) .checkboxWrapper_small___1fVHV',
-                );
-                await page.click(
-                    '#__next > div.CookieMessage___R6YKh > div > div.buttons___30eld > button',
-                );
-                await page.click(
-                    '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.subheaderMobile___MhAbC > div.menu___xfr1m > div > div.wrapper___lejhK > div > div.bottom___24gk2 > button',
-                );
-                await page.click(
-                    '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.subheaderMobile___MhAbC > div.menu___xfr1m > div > div.wrapper___lejhK > div.bottom___24gk2 > button',
-                );
-            }
-            break;
+        
+        await page.type(SEARCH_STRING, userData.model);
+        await page.keyboard.press('Enter');
+        
+        await wait(3000);
+        
+        const saleBanner =await page.$(CLOSE_SALE_BANNER);
+        
+        if(saleBanner){
+            await page.click(CLOSE_SALE_BANNER);
         }
+        
+        const checkAvailability = await page.$(PRODUCT);
 
-        await wait(4000);
+        if (!checkAvailability) {
+            
+            await dbSetValue(key,NOT_FOUND);
+            logger.info(NOT_FOUND_MODEL + userModelName);
+            await browser.close();
+            return null;
+        
+        }
+        
+        const items:itemLinks[] = [];
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const elements = await page.$$('.title___36ZSt');
-            const priceElements = await page.$$('.prices___eX8Hc');
-            const images = await page.$$('.image___lTtOK');
-            const avs = await page.$$(
-                '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.catalogWrapper___2SPdS > div > div.productsList___3ttMv > div:nth-child(5) > div > div.shopAvailable___3_rYr > span',
-            );
+            
+            const linkElements = await page.$$(LINK);
+            const priceElements = await page.$$(PRICE);
+            const imageElements = await page.$$(IMAGE);
+            const modelNameElements = await page.$$(MODEL_NAME);
+            
+            for (let i = 0; i < linkElements.length; i++) {
+               
+                const productLinks = linkElements[i];
+                const productPrices = priceElements[i];
+                const productImages = imageElements[i];
+                const productName = modelNameElements[i];
 
-            for (let i = 0; i < elements.length; i++) {
-                const element = elements[i];
-                const priceElement = priceElements[i];
-                const image = images[i];
-                const av = avs[i];
-                if (av !== undefined) {
-                    const link = await element.evaluate(
-                        (el: Element): string | null => el.getAttribute('href'),
-                    );
-
-                    const imageElement = await image.evaluate(
-                        (el: Element): string | null => el.getAttribute('src'),
-                    );
-
-                    const priceOld = await priceElement.$(
-                        '.prices___eX8Hc span',
-                    );
-
-                    const priceNew = await priceElement.$(
-                        '.currentPrice_accent___1s_2W',
-                    );
-                    let priceModel: string | undefined = '';
-                    if (priceNew === null) {
-                        priceModel = await priceOld?.evaluate(
-                            (el: Element): string | undefined =>
-                                el.textContent?.replace(/\D/g, ''),
-                        );
-                    } else {
-                        priceModel = await priceNew.evaluate(
-                            (el: Element): string | undefined =>
-                                el.textContent?.replace(/\D/g, ''),
-                        );
-                    }
-                    itemsLinks = {
-                        link: 'https://intersport.ua' + link,
-                        price: priceModel,
-                        image: imageElement,
-                    };
-                    await file('write', itemsLinks);
-                }
-            }
-            const nextButton = await page.$(
-                '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.catalogWrapper___2SPdS > div > div.more___1kVAz > button',
-            );
-            const text = await page.$(
-                '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.catalogWrapper___2SPdS > div > div.productsList___3ttMv > div:nth-child(8) > div > div.shopAvailable___3_rYr > span',
-            );
-
-            if (nextButton && text !== undefined) {
-                await page.click(
-                    '#__next > div.layout > div.layout__content > div.pageCatalog___1SdQM > div.catalogContainer___3Svjs.container > div > div.catalogWrapper___2SPdS > div > div.more___1kVAz > button',
+                const siteModelName = await productName.evaluate(
+                    (el: Element): string  => el.getAttribute('alt')?.toLowerCase().trim() || ''
                 );
+                
+                if(siteModelName.includes(userModelName) ||
+                   userModelName.includes(siteModelName)){
+                
+                    const image = await productImages?.evaluate(
+                        (el: Element): string | null => el.getAttribute('srcset'),
+                    );
+
+                    const link = await productLinks?.evaluate(
+                        (el: Element): string | undefined =>{
+                            const href = el.getAttribute('href');
+                            return href?.substring(3);  
+                        }
+                    );
+                
+                    const priceOld = await productPrices?.$(PRICE_OLD);
+                    const priceNew = await productPrices?.$(PRICE_NEW);
+                
+                    let productPrice: string | undefined = '';
+                
+                    if (priceNew === null) {
+                        
+                        productPrice = await priceOld?.evaluate(
+                            (el: Element): string | undefined =>
+                                el.textContent?.replace(/\D/g, ''),
+                        );
+                    
+                    } else {
+                        
+                        productPrice = await priceNew?.evaluate(
+                            (el: Element): string | undefined =>
+                                el.textContent?.replace(/\D/g, ''),
+                        );
+                    
+                    }
+                
+                    const imageMod = image?.split(/\s1x,/)[0];
+                
+                    const itemsLinks: itemLinks = {
+                        link: URL + link,
+                        price: productPrice,
+                        image: imageMod,
+                    };
+                
+                    items.push(itemsLinks);
+                }
+            
+            }
+
+            const nextButton = await page.$(NEXT_BUTTON);
+            
+            if (nextButton) {
+                
+                await page.click(NEXT_BUTTON);
+            
             } else {
-                logger.info('The operation was completed successfully in site10.js');
+                
                 await browser.close();
                 break;
+            
             }
         }
+        
+        const resultS = await dbSetValues(key,items);
+        
+        logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+        
+        return resultS;
     }
 }
 
-export const intersport = new Intersport();
+export const prm = new PRM();

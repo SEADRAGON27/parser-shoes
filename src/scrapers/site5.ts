@@ -1,118 +1,181 @@
-/*import puppeteer from 'puppeteer';
-import { userDTO } from '../utils/interfaces/userDTO.interface.js';
-import { itemsLinks } from '../utils/interfaces/itemsLinks.interface.js';
-import { file } from '../data/file.js';
-import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
+import puppeteer from 'puppeteer';
+import {  FindModelDto } from '../utils/interfaces/userDTO.interface.js';
+import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
+import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { wait } from '../utils/wait.js';
-/*class Modivo implements IScraperInterface {
-    constructor() {}
-    async parse( 
-        
-        userData: userDTO) {
-        let itemsLinks: itemsLinks;
-        const browser = await puppeteer.launch({ headless: 'new' });
-        const page = await browser.newPage();
-        await page.goto('https://modivo.ua', { waitUntil: 'load' });
+import { logger } from '../logs/logger.js';
+import { ALLOW_COOKIES, APPLY_FILTER, CLOSE_SALE_BANNER, FILTER_BUTTON, GENDER_SELECTORS, IMAGE, LINK, NEXT_BUTTON, NOT_FOUND_MODEL, OPEN_CATEGORY_FILTER, OPERATION_HAS_BEEN_SUCCESSFUL, PRICE, PRICE_NEW, PRICE_OLD, RESULT_BUTTON, SEARCH_STRING, SELECT_CATEGORY, URL} from '../constants/site5.js';
+import { dbGetValue, dbGetValues } from '../db/dbGet.js';
+import { dbSetValue, dbSetValues } from '../db/dbSet.js';
+import { NOT_FOUND } from '../constants/db.js';
 
-        await wait(4000);
-        await page.click('.buttons button:nth-child(1)');
-        await wait(1000);
-        await page.click('.search-icon');
-        await wait(1000);
-        await page.type('input[type="text"]', userData.model);
+class Answear implements ScraperInterface {
+    
+    async parse(userData: FindModelDto ): Promise<itemLinks[] | null> {
+        
+        const key = userData.model + ':5';
+        
+        const resultG = await dbGetValues(key);
+        const productAvailabilityOnTheWebsite = await dbGetValue(key);
+        
+        if(resultG){
+            
+            logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+            return resultG;
+        
+        }
+        
+        if(productAvailabilityOnTheWebsite) return null;
+        
+        const browser = await puppeteer.launch({ headless: true });
+
+        const page = await browser.newPage();
+
+        await page.goto(URL, {
+            waitUntil: 'domcontentloaded',
+        });
+
+        await wait(3000);
+       
+        await page.click(ALLOW_COOKIES);
+
+        const genderFilter = GENDER_SELECTORS[userData.gender];
+        page.click(genderFilter);
+        
+
+        await wait(3000);
+
+        await page.type(SEARCH_STRING, userData.model);
         await page.keyboard.press('Enter');
-        await wait(4000);
-        const filter = await page.$('.navigation-tree li:nth-child(1)');
-        if (filter === null) {
+
+        await wait(5000);
+
+        const checkAvailability = await page.$(FILTER_BUTTON);
+
+        if (!checkAvailability) {
+            
+            await dbSetValue(key,NOT_FOUND);
+            logger.info(NOT_FOUND_MODEL + userData.model);
             await browser.close();
-            return;
+            return null;
+        
         }
-        switch (userData.category) {
-        case 'man':
-            await page.click('.navigation-tree li:nth-child(1)');
-            await wait(2000);
-            await page.click('[data-test-id="10368"]');
-            break;
-        case 'woman':
-            await page.click('.navigation-tree li:nth-child(2)');
-            await wait(2000);
-            await page.click('[data-test-id="10368"]');
-            break;
-        case 'child':
-            await page.click('.navigation-tree li:nth-child(3)');
-            await wait(2000);
-            await page.click('[data-test-id="10368"]');
-            break;
+        
+        const closeBanner =await page.$(CLOSE_SALE_BANNER);
+        
+        if(closeBanner){
+            await page.click(CLOSE_SALE_BANNER);
         }
-        await wait(4000);
+        
+        await wait(1000);
+        
+        await page.click(FILTER_BUTTON);
+        
+        await wait(1000);
+       
+        await page.click(OPEN_CATEGORY_FILTER);
+
+        await wait(1000);
+
+        const categoryShoes = await page.$(SELECT_CATEGORY);
+        
+        if (categoryShoes) {
+            
+            await page.click(SELECT_CATEGORY);
+            
+            await wait(1000);
+            
+            await page.click(APPLY_FILTER);
+            
+            await wait(2000);
+            
+            await page.click(RESULT_BUTTON);
+        
+        } else {
+            
+            await browser.close();
+            return null;
+        }
+
+       
+        await wait(3000);
+        
+        const items:itemLinks[] = [];
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const elements = await page.$$('.product-card-link'); // Находим все элементы с классом 'product-cut__title-link'
-            const priceElements = await page.$$('.price-container');
+           
+            const linkElements = await page.$$(LINK);
+            const priceElements = await page.$$(PRICE);
+            const imageElements = await page.$$(IMAGE);
+            
+            for (let i = 0; i < linkElements.length; i++) {
+                
+                const productLink = linkElements[i];
+                const productPrice = priceElements[i];
+                const productImage = imageElements[i];
 
-            let model = userData.model.replace(
-                /\b\w/g,
-                (char: string): string => char.toUpperCase(),
+                const link = await productLink.evaluate(
+                    (el: Element): string | null => el.getAttribute('href'),
+                );
+
+                const image = await productImage.evaluate(
+                    (el: Element): string | null => el.getAttribute('srcset'),
+                );
+
+                const priceOld = await productPrice?.$(PRICE_OLD);
+                const priceNew = await productPrice?.$(PRICE_NEW);
+                    
+                let modelPrice: string | undefined = '';
+                    
+                if (priceNew === null) {
+                    
+                    modelPrice = await priceOld?.evaluate(
+                        (el: Element): string | undefined =>
+                            el.textContent?.replace(/\D/g, ''),
+                    );
+                
+                } else {
+                    
+                    modelPrice = await priceNew?.evaluate(
+                        (el: Element): string | undefined =>
+                            el.textContent?.replace(/\D/g, ''),
+                    );
+                
+                }
+                
+                const imageMod = image?.split(/\s1x,/)[0];
+                const itemLinks: itemLinks = {
+                    link: URL + link,
+                    price: modelPrice,
+                    image: imageMod,
+                };
+                
+                items.push(itemLinks);
+            }
+        
+            
+            const nextButton = await page.$(
+                NEXT_BUTTON,
             );
 
-            for (let i = 0; i < elements.length; i++) {
-                const element = elements[i];
-                const priceElement = priceElements[i];
-                const text = await element.evaluate(
-                    (el: Element): string | null => el.getAttribute('title'),
-                );
-
-                if (model?.includes('Adidas')) {
-                    model =
-                        model.charAt(0).toLowerCase() + userData.model.slice(1);
-                }
-
-                const checkModel = [...model].every(
-                    (char) => text?.includes(char),
-                );
-
-                if (checkModel) {
-                    const link = await element.evaluate(
-                        (el: Element): string | null => el.getAttribute('href'),
-                    );
-
-                    const priceOld = await priceElement.$(
-                        '.price:not(.is-sale)',
-                    );
-
-                    const priceNew = await priceElement.$('.is-sale');
-                    let priceModel: string | undefined = '';
-                    if (priceNew === null) {
-                        const price = await priceOld?.evaluate(
-                            (el: Element): string | undefined =>
-                                el.textContent?.replace(/\D/g, '').slice(0, -2),
-                        );
-                        priceModel = price;
-                    } else {
-                        priceModel = await priceNew.evaluate(
-                            (el: Element): string | undefined =>
-                                el.textContent?.replace(/\D/g, '').slice(0, -2),
-                        );
-                    }
-
-                    itemsLinks = {
-                        link: 'https://modivo.ua' + link,
-                        price: priceModel,
-                    };
-                    await file('write', itemsLinks);
-                }
-            }
-            const nextButton = await page.$('.button-icon s tertiary');
             if (nextButton) {
-                await page.click('.button-icon s tertiary');
+                
+                await page.click(NEXT_BUTTON);
+            
             } else {
-                //await browser.close();
+                
+                await browser.close();
                 break;
+            
             }
         }
+        
+        const resultS = await dbSetValues(key,items);
+       
+        logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+        
+        return resultS;
     }
 }
 
-export const modivo = new Modivo();
-//modivo.parse({ model: 'new balance 574', category: 'man' });
-*/
+export const answear = new Answear();

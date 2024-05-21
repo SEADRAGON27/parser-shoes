@@ -1,4 +1,4 @@
-export interface itemsLinks {
+export interface itemLinks {
     name?: string;
     link: string | null;
     price: string | undefined | null;

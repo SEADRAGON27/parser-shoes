@@ -1,5 +1,7 @@
-import { userDTO } from './userDTO.interface.js';
-export interface IHandlerIterface {
-    // eslint-disable-next-line no-unused-vars
-    parseAll: (userData: userDTO) => void;
+/* eslint-disable no-unused-vars */
+import { itemLinks } from './itemsLinks.interface.js';
+import { FindModelDto } from './userDTO.interface.js';
+
+export interface HandlerIterface {
+    parseAll: (userData: FindModelDto) => Promise<itemLinks[] | null>;
 }

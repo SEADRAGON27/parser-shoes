@@ -1,112 +1,158 @@
 import puppeteer from 'puppeteer';
-import { userDTO } from '../utils/interfaces/userDTO.interface.js';
-import { itemsLinks } from '../utils/interfaces/itemsLinks.interface.js';
-import { file } from '../data/file.js';
-import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
-import { wait } from '../utils/wait.js';
+import { FindModelDto  } from '../utils/interfaces/userDTO.interface.js';
+import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
+import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { logger } from '../logs/logger.js';
-class Adidas implements IScraperInterface {
-    async parse(userData: userDTO) {
-        let itemsLinks: itemsLinks;
-        const userModel = userData.model.replace(/^(\S+\s*)/, '').trim();
+import { CLOSE_BANNER, FILTER_BUTTON, GENDER_SELECTORS, IMAGE, LINK, NEXT_BUTTON, NOT_FOUND_MODEL, OPEN_GENDER_FILTER, OPERATION_HAS_BEEN_SUCCESSFUL, PRICE, PRICE_NEW, PRICE_OLD, RESULT_BUTTON, SEARCH_STRING, URL } from '../constants/site4.js';
+import { wait } from '../utils/wait.js';
+import { dbSetValues, dbSetValue } from '../db/dbSet.js';
+import { dbGetValue, dbGetValues } from '../db/dbGet.js';
+import { NOT_FOUND } from '../constants/db.js';
+
+class Adidas implements ScraperInterface {
+    
+    async parse(userData: FindModelDto ): Promise<itemLinks[] | null> {
+        
+        const key = userData.model + ':4';
+        
+        const resultG = await dbGetValues(key);
+        const productAvailabilityOnTheWebsite = await dbGetValue(key);
+        
+        if(resultG){
+            
+            logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+            return resultG;
+        
+        }
+        
+        if(productAvailabilityOnTheWebsite) return null;
+        
         const browser = await puppeteer.launch({ headless: true });
+        
         const page = await browser.newPage();
+        
         await page.setViewport({ width: 1366, height: 768 });
-        await page.goto('https://www.adidas.ua');
-        await page.click('.search-input__button');
+        
+        await page.goto(URL,{
+            waitUntil: 'domcontentloaded',
+        });
+        
         await wait(1000);
-        await page.type('input[type="text"]', userModel);
+        
+        await page.type(SEARCH_STRING, userData.model);
         await page.keyboard.press('Enter');
-        await wait(2000);
-        const filterButton = await page.$('.filter__btn--icon');
         
-        if (!filterButton) {
-            logger.info(`Not found ${userData.model} in site4.js`);
+    
+        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+        
+        const checkAvailability= await page.$(FILTER_BUTTON);
+        
+        if (!checkAvailability) {
+            
+            await dbSetValue(key,NOT_FOUND);
+            logger.info(NOT_FOUND_MODEL + userData.model);
             await browser.close();
-            return;
+            return null;
+        
         }
         
-        await page.click('.filter__btn--icon');
-        await wait(2000);
-        await page.click('.panel__list div:nth-child(4)');
-        await wait(2000);
-
-        switch (userData.category) {
-        case 'man':
-            await page.click(
-                '.list[data-type="checkbox-list"] a:nth-child(4)',
-            );
-
-            await page.click('.filter__content--apply');
-            break;
-        case 'woman':
-            await page.click(
-                '.list[data-type="checkbox-list"] a:nth-child(3)',
-            );
-            await page.click('.filter__content--apply');
-            break;
-        case 'child':
-            await page.click(
-                '.list[data-type="checkbox-list"] a:nth-child(2)',
-            );
-            await page.click('.filter__content--apply');
-            break;
-        }
-
+        await page.click(FILTER_BUTTON);
+        await page.waitForSelector(FILTER_BUTTON);
+        
         await wait(3000);
+
+        const banner = await page.$(CLOSE_BANNER);
+        
+        if(banner) await page.click(CLOSE_BANNER);
+    
+        await page.click(OPEN_GENDER_FILTER);
+        await page.waitForSelector(OPEN_GENDER_FILTER);
+        
+        const genderFilter = GENDER_SELECTORS[userData.gender];
+        page.click(genderFilter);
+        
+        await wait(2000);
+        
+        await page.click(RESULT_BUTTON);
+        
+        await wait(4000);
+        
+        const items:itemLinks[] = [];
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const elements = await page.$$('.product__content');
-            const priceElements = await page.$$('.product__price');
-            const images = await page.$$('.image-main img');
             
-            for (let i = 0; i < elements.length; i++) {
-                const element = elements[i];
-                const priceElement = priceElements[i];
-                const image = images[i];
+            const linkElements = await page.$$(LINK);
+            const priceElements = await page.$$(PRICE);
+            const imageElements = await page.$$(IMAGE);
+            
+            for (let i = 0; i < linkElements.length; i++) {
+                
+                const productLink = linkElements[i];
+                const productPrice = priceElements[i];
+                const productImage = imageElements[i];
 
-                const link = await element.$eval(
-                    '.product__info',
+                const link = await productLink.evaluate(
                     (el: Element): string | null => el.getAttribute('href'),
                 );
 
-                const imageElement = await image.evaluate(
-                    (el: Element): string | null => el.getAttribute('src'),
+                const imageElement = await productImage.evaluate(
+                    (el: Element): string | null => el.getAttribute('data-srcset'),
                 );
 
-                const priceOld = await priceElement.$eval(
-                    '.price__first',
+                const priceOld = await productPrice.$eval(
+                    PRICE_OLD,
                     (el: Element): string | undefined =>
                         el.textContent?.replace(/\D/g, ''),
                 );
-                const priceNew = await priceElement.$('.price__sale');
-                let priceModel: string | undefined = '';
+                
+                const priceNew = await productPrice.$(PRICE_NEW);
+                
+                let modelPrice: string | undefined = '';
+                
                 if (priceNew === null) {
-                    priceModel = priceOld;
+                    
+                    modelPrice = priceOld;
+                
                 } else {
-                    priceModel = await priceNew.evaluate(
+                    
+                    modelPrice = await priceNew.evaluate(
                         (el: Element): string | undefined =>
                             el.textContent?.replace(/\D/g, ''),
                     );
+                
                 }
 
-                itemsLinks = {
-                    link: 'https://www.adidas.ua' + link,
-                    price: priceModel,
+                const itemLinks: itemLinks = {
+                    link: URL + link,
+                    price: modelPrice,
                     image: imageElement,
                 };
-                await file('write', itemsLinks);
+                
+                items.push(itemLinks);
+            
             }
-            const nextButton = await page.$('.pagination__item--btn');
+            
+            const nextButton = await page.$(NEXT_BUTTON);
+            
             if (nextButton) {
-                await page.click('.pagination__item--btn');
+                
+                await page.click(NEXT_BUTTON);
+                
             } else {
-                logger.info('The operation was completed successfully in site4.js');
+                
                 await browser.close();
                 break;
+            
             }
         }
+        
+        const resultS = await dbSetValues(key,items);
+       
+        logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+        
+        return resultS;
     }
 }
 
 export const adidas = new Adidas();
+

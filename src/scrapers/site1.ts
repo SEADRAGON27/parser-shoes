@@ -1,121 +1,159 @@
+/* eslint-disable quotes */
 /* eslint-disable no-constant-condition */
 import puppeteer from 'puppeteer';
-import { userDTO } from '../utils/interfaces/userDTO.interface.js';
-import { itemsLinks } from '../utils/interfaces/itemsLinks.interface.js';
-import { file } from '../data/file.js';
-import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
-import { wait } from '../utils/wait.js';
+import { FindModelDto } from '../utils/interfaces/userDTO.interface.js';
+import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
+import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { logger } from '../logs/logger.js';
+import { GENDER_SELECTORS, IMAGE, LINK, MAN_GENDER, MODEL_NAME, NEXT_BUTTON, NOT_FOUND_MODEL, OPERATION_HAS_BEEN_SUCCESSFUL, PRICE, PRICE_NEW, PRICE_OLD, SEARCH_STRING, URL} from '../constants/site1.js';
+import { dbSetValues, dbSetValue } from '../db/dbSet.js';
+import { wait } from '../utils/wait.js';
+import { dbGetValues, dbGetValue } from '../db/dbGet.js';
+import { NOT_FOUND } from '../constants/db.js';
 
-export class Nike implements IScraperInterface {
-    async parse(userData: userDTO) {
-        let itemsLinks: itemsLinks;
-        const browser = await puppeteer.launch({ headless: true });
+export class Nike implements ScraperInterface {
+    
+    async parse(userData: FindModelDto ): Promise<itemLinks[] | null> {
+        
+        const key = userData.model + ':1';
+        
+        const resultG = await dbGetValues(key);
+        const productAvailabilityOnTheWebsite = await dbGetValue(key);
+        
+        if(resultG){
+            
+            logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+            return resultG;
+        
+        }
+        
+        if(productAvailabilityOnTheWebsite) return null;
+        
+        const userModelName = userData.model.toLowerCase().trim();
+        
+        const browser = await puppeteer.launch({ headless: false });
+        
         const page = await browser.newPage();
-        await page.goto('https://www.nike.one', {
+        
+        await page.goto(URL, {
             waitUntil: 'domcontentloaded',
         });
-        await wait(1000);
-        await page.type('[type="text"]', userData.model);
+      
+        await page.type(SEARCH_STRING, userData.model);
+        
         await page.keyboard.press('Enter');
-        await wait(2000);
-        const filterButton = await page.$(
-            'body > div.page__body > div.page__content > div > div > div > div.content__sidebar.hidden-xs > div > div > ul > li:nth-child(1) > ul > li > a',
-        );
         
-        if (!filterButton) {
-            logger.info(`Not found ${userData.model} in site1.js`);
+        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+        
+        const checkAvailability = await page.$(MAN_GENDER);
+        
+        if (!checkAvailability) {
+            
+            await dbSetValue(key,NOT_FOUND);
+            logger.info(NOT_FOUND_MODEL + userModelName);
             await browser.close();
-            return;
+            return null;
         }
         
-        switch (userData.category) {
-        case 'man':
-            await page.click(
-                'body > div.page__body > div.page__content > div > div > div > div.content__sidebar.hidden-xs > div > div > ul > li:nth-child(1) > ul > li > a',
-            );
-            break;
-        case 'woman':
-            await page.click(
-                'body > div.page__body > div.page__content > div > div > div > div.content__sidebar.hidden-xs > div > div > ul > li:nth-child(2) > ul > li > a',
-            );
-            break;
-        }
-        // eslint-disable-next-line quotes, no-constant-condition
-        await wait(2000);
+        
+        const genderFilter = GENDER_SELECTORS[userData.gender];
+        page.click(genderFilter);
+        
+        const items: itemLinks[] = [];
+
+        await wait(3000);
+
         while (true) {
-            const elements = await page.$$('.product-cut__title-link'); // Находим все элементы с классом 'product-cut__title-link'
-            const priceElements = await page.$$('.product-price--bg');
-            const images = await page.$$('.product-photo__item img');
+            
+            const linkElements = await page.$$(LINK); 
+            const priceElements = await page.$$(PRICE);
+            const imageElements = await page.$$(IMAGE);
 
             const model = userData.model.replace(/\b\w/g, (char) =>
                 char.toUpperCase(),
             );
 
-            for (let i = 0; i < elements.length; i++) {
-                const element = elements[i];
-                const priceElement = priceElements[i];
-                const image = images[5 + i];
-                const text = await element.evaluate(
-                    (el: Element): string | null => el.textContent,
+            for (let i = 0; i < linkElements.length; i++) {
+                
+                const productLink = linkElements[i];
+                const productPrice = priceElements[i];
+                const productImage = imageElements[5 + i];
+                
+                const siteModelName = await productLink.evaluate(
+                    (el: Element): string => el.textContent?.toLowerCase().trim() || '',
                 );
-
-                const imageElement = await image.evaluate(
-                    (el: Element): string | null => el.getAttribute('src'),
-                );
-
-                if (text?.includes(model)) {
-                    const link = await element.evaluate(
+                
+                if (siteModelName.includes(userModelName) ||
+                    userModelName.includes(siteModelName)) {
+                    
+                    const image = await productImage.evaluate(
+                        (el: Element): string | null => el.getAttribute('src'),
+                    );
+                    
+                    
+                    const link = await productLink.evaluate(
                         (el: Element): string => (el as HTMLAnchorElement).href,
                     );
 
-                    const priceOld = await priceElement.$(
-                        '.product-price__main',
-                    );
-
-                    const priceNew = await priceElement.$(
-                        '.product-price__old',
-                    );
-                    let priceModel: string | undefined = '';
+                    const priceOld = await productPrice.$(PRICE_OLD);
+                    const priceNew = await productPrice.$(PRICE_NEW);
+                    
+                    let modelPrice: string | undefined = '';
+                    
                     if (priceNew === null) {
-                        priceModel = await priceOld?.evaluate(
+                        
+                        modelPrice = await priceOld?.evaluate(
                             (el: Element): string | undefined =>
                                 el.textContent?.replace(/\D/g, ''),
                         );
+                    
                     } else {
-                        priceModel = await priceElement.$eval(
-                            '.product-price__main',
+                        
+                        modelPrice = await productPrice.$eval(
+                            PRICE_OLD,
                             (el: Element): string | undefined =>
                                 el.textContent?.replace(/\D/g, ''),
                         );
+                    
                     }
 
-                    itemsLinks = {
+                    const itemLinks: itemLinks = {
                         link: link,
-                        price: priceModel,
-                        image: 'https://www.nike.one' + imageElement,
+                        price: modelPrice,
+                        image: URL + image,
                     };
-                    await file('write', itemsLinks);
+                    
+                    items.push(itemLinks);
+                   
                 }
             }
 
-            const nextButtonSelector =
-                'body > div.page__body > div.page__content > div > div > div > div.content__body > div:nth-child(3) > div.content__pagination > ul > li.paginator__item.paginator__item--next > a > svg';
-            const nextButton = await page.$(nextButtonSelector);
+            const nextButton = await page.$(NEXT_BUTTON);
 
             const text = await page.$eval(
-                '.product-cut__title-link',
+                MODEL_NAME,
                 (el: Element): string | null => el.textContent,
             );
+            
             if (nextButton && text?.includes(model)) {
-                await page.click(nextButtonSelector);
+                
+                await page.click(NEXT_BUTTON);
+            
             } else {
-                logger.info('The operation was completed successfully in site1.js');
+                
                 await browser.close();
                 break;
+            
             }
         }
+        
+        const resultS = await dbSetValues(key,items);
+       
+        logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+        
+        return resultS;
     }
 }
 
 export const nike = new Nike();
+

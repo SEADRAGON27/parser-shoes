@@ -1,23 +1,25 @@
 {
   "name": "parser-shoes-prices",
   "version": "1.0.0",
-  "description": "",
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "start-prod": "node built/server.js",
-    "built":"tsc && xcopy src\\client\\views  built\\client\\views /e && xcopy src\\*.json  built /e && xcopy src\\*.log  built /e",
-    "lint": "eslint --ext .ts src/app.ts",
-    "lint:fix": "prettier --write \"**/*.ts\"",
+    "start": "node built/server.js",
+    "built-windows": "tsc && xcopy src\\client\\views  built\\client\\views /e && xcopy src\\*.json  built /e && xcopy src\\*.log  built /e",
+    "built-linux-mac": "tsc && cp -r src/client/views built/client/views && cp -r src/*.json built && cp -r src/*.log built",
+    "lint": "eslint --ext .ts src/**/*.ts",
+    "lint:fix": "prettier --write \"**/*.ts\""
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "ejs": "^3.1.9",
     "express": "^4.18.2",
+    "mime": "^4.0.3",
     "path": "^0.12.7",
     "pino": "^8.18.0",
     "puppeteer": "^22.0.0",
+    "redis": "^4.6.13",
     "tslog": "^4.9.2"
   },
   "devDependencies": {
@@ -33,6 +35,6 @@
     "prettier": "^3.0.3",
     "ts-node": "^10.9.1",
     "ts-watch": "^1.0.8",
-    "typescript": "^5.2.2",
+    "typescript": "^5.2.2"
   }
 }

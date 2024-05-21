@@ -1,154 +1,202 @@
+/* eslint-disable no-prototype-builtins */
 import puppeteer from 'puppeteer';
-import { userDTO } from '../utils/interfaces/userDTO.interface.js';
-import { itemsLinks } from '../utils/interfaces/itemsLinks.interface.js';
-import { file } from '../data/file.js';
-import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
+import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
+import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
-class Intertop implements IScraperInterface {
-   async parse(userData: userDTO) {
-        let itemsLinks: itemsLinks;
+import { FILTER_BUTTON, GENDER_MAP, GENDER_SELECTORS, ITEMS, LIST_GENDERS, SEARCH_STRING, URL,OPEN_GENDER_FILTER, CLOSE_COOKIE, SUBMIT_BUTTON, RESULT_BUTTON, LINK, PRICE, IMAGE, PRODUCT_AVAILABILITY, PRICE_OLD, PRICE_NEW, NEXT_BUTTON, AVAILABILITY, OPERATION_HAS_BEEN_SUCCESSFUL, NOT_FOUND_MODEL, SHOP_AVAILAIBLE } from '../constants/site9.js';
+import { FindModelDto } from '../utils/interfaces/userDTO.interface.js';
+import { dbGetValue, dbGetValues } from '../db/dbGet.js';
+import { dbSetValue, dbSetValues } from '../db/dbSet.js';
+import { NOT_FOUND } from '../constants/db.js';
+
+class Intersport implements ScraperInterface {
+    
+    async parse(userData: FindModelDto ): Promise<itemLinks[] | null> {
+        
+        const key = userData.model + ':9';
+        
+        const resultG = await dbGetValues(key);
+        const productAvailabilityOnTheWebsite = await dbGetValue(key);
+        
+        if(resultG){
+            
+            logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+            return resultG;
+        
+        }
+        
+        if(productAvailabilityOnTheWebsite) return null;
+        
         const browser = await puppeteer.launch({ headless: true });
+        
         const page = await browser.newPage();
-        await page.goto('https://intertop.ua', {
+        
+        await page.goto(URL, {
             waitUntil: 'domcontentloaded'
         });
-        await wait(1000);
         
-        switch (userData.category) {
-        case 'man':
-            await page.click('.main-intro-container-in div:nth-child(2)');
-            break;
-        case 'woman':
-            await page.click('.main-intro-container-in div:nth-child(1)');
-            break;
-        case 'child':
-            await page.click('.main-intro-container-in div:nth-child(3)');
-        }
-        await wait(1000);
-        await page.click('.mobile-navigation__item');
         await wait(2000);
-        await page.click('.top-menu-list li:nth-child(3)');
-        await wait(2000);
-        await page.click('.menu-part .submenu-head');
-        await wait(2000);
-        await page.click('.filter-right');
-        await wait(2000);
-        await page.click('.filters-list li:nth-child(2) .filter-name');
-        await page.type(
-            '[placeholder="Знайти бренд"]',
-            userData.model.split(' ')[0],
-        );
-        await wait(3000);
-
-        const filterButton = await page.$(
-            '#app > div.header-container.catalog-section-container > div > div.catalog-wrap > div.filter-mobile.opened > div.mobile-filter-menu.opened > div.mobile-filter-menu-in > ul > li.filter-select.filter-prop-brands.one-filter.opened > div > ul > li > a > label > span.styled-checkbox.styled-checkbox--v2',
-        );
         
-        if (!filterButton) {
-            logger.info(`Not found ${userData.model} in site9.js`);
+        await page.type(SEARCH_STRING, userData.model);
+        await page.keyboard.press('Enter');
+        
+        await wait(6000);
+        
+        const filterButton = page.$(FILTER_BUTTON);
+        
+        const items = await page.$$(ITEMS);
+        
+        const checkAvailability = await page.$$eval(
+            SHOP_AVAILAIBLE,
+            (elements: Element[]) => {
+                
+                return elements.map((element: Element): string | undefined => {
+                    
+                    if (element.textContent !== null) {
+                        
+                        return element.textContent;
+                    }
+                });
+            },
+        );
+       
+        if (items.length == checkAvailability.length || !filterButton) {
+            
+            await dbSetValue(key,NOT_FOUND);
+            logger.info(NOT_FOUND_MODEL + userData.model);
             await browser.close();
-            return;
+            return null;
+        
+        }
+
+        await page.click(FILTER_BUTTON);
+        
+        await wait(4000);
+        
+        await page.click(OPEN_GENDER_FILTER);
+
+        const genders = await page.$$eval(
+            LIST_GENDERS,
+            (listElements: Element[],GENDER_MAP) => {
+    
+                return listElements.map(element => {
+                    const textContent = element.textContent;
+                    
+                    if (textContent !== null && GENDER_MAP.hasOwnProperty(textContent)) {
+                        
+                        return GENDER_MAP[textContent];
+                    
+                    }
+                
+                    return null;
+                
+                }).filter((el) => el !== null);
+            },
+            GENDER_MAP
+        );
+             
+
+        const genderFilter = GENDER_SELECTORS[userData.gender];
+        
+        if (genderFilter && genders.includes(userData.gender)) {
+            
+            await page.click(genderFilter);
+        
+        }else{
+            
+            await browser.close();
+            return null;
+        
         }
         
-        await page.click(
-            '#app > div.header-container.catalog-section-container > div > div.catalog-wrap > div.filter-mobile.opened > div.mobile-filter-menu.opened > div.mobile-filter-menu-in > ul > li.filter-select.filter-prop-brands.one-filter.opened > div > ul > li > a > label > span.styled-checkbox.styled-checkbox--v2',
-        );
-        await wait(1000);
-        await page.click(
-            '#app > div.header-container.catalog-section-container > div > div.catalog-wrap > div.filter-mobile.opened > div.mobile-filter-menu.opened > div.mobile-filter-menu-in > ul > li.filter-select.filter-prop-brands.one-filter.opened > div > ul > div > span',
-        );
-        await wait(1000);
-        await page.click(
-            '#app > div.header-container.catalog-section-container > div > div.catalog-wrap > div.filter-mobile.opened > div.mobile-filter-menu.opened > div.root-filter-controls > div > div:nth-child(1) > div',
-        );
-        await wait(2000);
+        await page.click(CLOSE_COOKIE);
+        
+        await page.click(SUBMIT_BUTTON);
+        
+        await page.click(RESULT_BUTTON);
+        
+        await wait(6000);
+        
+        const itemS:itemLinks[] = [];
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const avaliableItem = await page.$('.not-available-indicator');
-            const nextButton = await page.$('.justify-content-center');
-            let stopScroling = false;
-            if (nextButton && !avaliableItem) {
-                await nextButton.click();
-            } else {
-                const elements = await page.$$('.product-name');
-                const priceElements = await page.$$('.product-price');
-                const images = await page.$$('.product-thumb img');
-                const productsAvaliability = await page.$$('.product-thumb');
+            
+            const linkElements = await page.$$(LINK);
+            const priceElements = await page.$$(PRICE);
+            const imageElements = await page.$$(IMAGE);
+            const productsAvailability = await page.$$(PRODUCT_AVAILABILITY);
 
-                for (let i = 0; i < elements.length; i++) {
-                    const element = elements[i];
-                    const priceElement = priceElements[i];
-                    const image = images[i];
-                    const productAvaliability = productsAvaliability[i];
-                    const elemenT = await element.$('a div:nth-child(1)');
-
-                    if (!elemenT) {
-                        await browser.close();
-                        return;
-                    }
-
-                    const text = await elemenT.evaluate(
-                        (el: Element): string | null => el.textContent,
+            for (let i = 0; i < linkElements.length; i++) {
+                
+                const productLink = linkElements[i];
+                const productPrice = priceElements[i];
+                const productImage = imageElements[i];
+                const productAvailability = productsAvailability[i];
+                
+                if (productAvailability!== undefined) {
+                    
+                    const link = await productLink.evaluate(
+                        (el: Element): string | null => el.getAttribute('href'),
                     );
 
-                    const checkAvaliability = await productAvaliability.$(
-                        '.not-available-indicator',
+                    const imageElement = await productImage.evaluate(
+                        (el: Element): string | null => el.getAttribute('src'),
                     );
 
-                    if (
-                        text
-                            ?.toLowerCase()
-                            ?.includes(userData.model.toLowerCase()) &&
-                        !checkAvaliability
-                    ) {
-                        const link = await element.$eval(
-                            '.product-name a',
-                            (el: Element): string | null =>
-                                el.getAttribute('href'),
+                    const priceOld = await productPrice.$(PRICE_OLD);
+                    const priceNew = await productPrice.$(PRICE_NEW);
+                    
+                    let priceModel: string | undefined = '';
+                    
+                    if (priceNew === null) {
+                       
+                        priceModel = await priceOld?.evaluate(
+                            (el: Element): string | undefined =>
+                                el.textContent?.replace(/\D/g, ''),
                         );
-
-                        const imageElement = await image.evaluate(
-                            (el: Element): string | null =>
-                                el.getAttribute('src'),
+                    
+                    } else {
+                        
+                        priceModel = await priceNew.evaluate(
+                            (el: Element): string | undefined =>
+                                el.textContent?.replace(/\D/g, ''),
                         );
-
-                        const priceOld = await priceElement.$('.current-price');
-
-                        const priceNew = await priceElement.$('.action_price');
-                        let priceModel: string | undefined = '';
-                        if (priceNew === null) {
-                            priceModel = await priceOld?.evaluate(
-                                (el: Element): string | undefined =>
-                                    el.textContent?.replace(/\D/g, ''),
-                            );
-                        } else {
-                            priceModel = await priceNew.evaluate(
-                                (el: Element): string | undefined =>
-                                    el.textContent?.replace(/\D/g, ''),
-                            );
-                        }
-
-                        itemsLinks = {
-                            link: link,
-                            price: priceModel,
-                            image: imageElement,
-                        };
-
-                        await file('write', itemsLinks);
+                    
                     }
+                    
+                    const itemLinks: itemLinks = {
+                        link: URL + link,
+                        price: priceModel,
+                        image: imageElement,
+                    };
+                    
+                    itemS.push(itemLinks);
                 }
-
-                stopScroling = true;
             }
+            
+            const nextButton = await page.$(NEXT_BUTTON);
+            
+            const text = await page.$(AVAILABILITY);
 
-            if (stopScroling === true) {
-                logger.info('The operation was completed successfully in site9.js');
-                browser.close();
+            if (nextButton && text !== undefined) {
+                
+                await page.click(NEXT_BUTTON);
+            
+            } else {
+                
+                await browser.close();
                 break;
+            
             }
         }
+        
+        const resultS = await dbSetValues(key,itemS);
+       
+        logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+        
+        return resultS;
     }
 }
 
-export const intertop = new Intertop();
+export const intersport = new Intersport();

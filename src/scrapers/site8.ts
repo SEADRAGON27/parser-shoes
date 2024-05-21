@@ -1,216 +1,207 @@
 import puppeteer from 'puppeteer';
-import { userDTO } from '../utils/interfaces/userDTO.interface.js';
-import { itemsLinks } from '../utils/interfaces/itemsLinks.interface.js';
-import { file } from '../data/file.js';
-import { IScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
+import { FindModelDto } from '../utils/interfaces/userDTO.interface.js';
+import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
+import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
-class MegaSport implements IScraperInterface {
-  async parse(userData: userDTO) {
-        let itemsLinks: itemsLinks;
+import { ALLOW_COOKIES, ALL_BRANDS, BRAND_AVAILABILITY, CATEGORY_SHOES, CHECK_PRODUCT,  CLOSE_SALE_BANNER,  FILTER_BUTTON, GENDER_SELECTORS, GET_LINK, GET_MODEL_NAME, IMAGE, LINK,  MENU, NEXT_BUTTON, NOT_FOUND_MODEL, OPERATION_HAS_BEEN_SUCCESSFUL, PRICE, PRICE_NEW, PRICE_OLD, PRODUCT_AVAILABILITY, RESULT_BUTTON, SEARCH_STRING, SELECT_BRAND, SELECT_BRANDS, SUBMIT_BUTTON, URL} from '../constants/site8.js';
+import { dbGetValue, dbGetValues } from '../db/dbGet.js';
+import { dbSetValue, dbSetValues } from '../db/dbSet.js';
+import { NOT_FOUND } from '../constants/db.js';
+
+class Intertop implements ScraperInterface {
+    
+    async parse(userData: FindModelDto ): Promise<itemLinks[] | null> {
+        
+        const key = userData.model + ':8';
+        
+        const resultG = await dbGetValues(key);
+        const productAvailabilityOnTheWebsite = await dbGetValue(key);
+        
+        if(resultG){
+            
+            logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+            return resultG;
+        
+        }
+        
+        if(productAvailabilityOnTheWebsite) return null;
+        
+        const userModelName = userData.model.toLowerCase().trim();
+        
         const browser = await puppeteer.launch({ headless: true });
+        
         const page = await browser.newPage();
-        await page.goto('https://megasport.ua', {
-            waitUntil: 'domcontentloaded'
+        
+        await page.goto(URL, {
+            waitUntil: 'domcontentloaded',
         });
-        await wait(1000);
-        const saleButton = await page.$(
-            'body > div.pure-modal-backdrop > div > div > svg > path:nth-child(2)',
-        );
         
-        if (saleButton) {
-            page.click(
-                'body > div.pure-modal-backdrop > div > div > svg > path:nth-child(2)',
-            );
-        }
+        await wait(1000);
+
+        const genderFilter = GENDER_SELECTORS[userData.gender];
+        page.click(genderFilter);
+        
+        await wait(1000);
+        
+        await page.click(MENU);
+        
+        await wait(1000);
+        
+        await page.click(CATEGORY_SHOES);
+        
+        await wait(1000);
+        
+        await page.click(ALL_BRANDS);
         
         await wait(2000);
-        await page.click('.gU1QRr');
+        
+        await page.click(FILTER_BUTTON);
+        
         await wait(1000);
-        await page.type('input[type="search"]', userData.model);
-        await page.keyboard.press('Enter');
+        
+        await page.click(SELECT_BRANDS);
+        
+        await page.type(SEARCH_STRING,userData.model.split(' ')[0]);
+        
         await wait(3000);
-        const filterButton = await page.$('.WiOXQg');
-        
-        if (!filterButton) {
-            logger.info(`Not found ${userData.model} in site8.js`);
+
+        const checkAvailability = await page.$(BRAND_AVAILABILITY);
+
+        if (!checkAvailability) {
+            
+            await dbSetValue(key,NOT_FOUND);
+            logger.info(NOT_FOUND_MODEL + userModelName);
             await browser.close();
-            return;
-        }
+            return null;
         
-        await page.click('.WiOXQg');
-        await wait(1000);
+        }
+
         await page.click(
-            '#js--root > main > section > div > div.gMgNGc > div > div.EsEZ4A > div.hUG3It > div:nth-child(2) > button.cK8hAd.T4WwML.V5PAx1.fRUyj7 > div.WUWUnG',
+            SELECT_BRAND,
         );
-        const shoesCategories = await page.$$('.fSDYfB');
-        const shoesCategory = [];
-        for (const category of shoesCategories) {
-            const res = await category.evaluate(
-                (el) => el.textContent?.slice(0, 6),
-            );
-            shoesCategory.push(res);
-        }
-        if (shoesCategory.includes('Взуття')) {
-            await page.click(
-                '#js--root > main > section > div > div.gMgNGc > div > div.EsEZ4A > div.hUG3It > div:nth-child(2) > div > div > div:nth-child(2)',
-            );
-            await page.click(
-                '#js--root > main > section > div > div.gMgNGc > div > div.EsEZ4A > div.hUG3It > div:nth-child(2) > div > div > div.fSDYfB.ajAQxP > div.Yy8vrQ > button',
-            );
-            await page.click(
-                '#js--root > main > section > div > div.gMgNGc > div > div.EsEZ4A > div.hUG3It > div:nth-child(2) > button.cK8hAd.T4WwML.V5PAx1.ajAQxP',
-            );
-        } else {
-            await browser.close();
-        }
-        await page.click('.hUG3It div:nth-child(3)');
-
-        const categories = await page.$$eval(
-            '[data-test-id="pickGenderSection"]',
-            (listElements: Element[]): string[] => {
-                const listOfGenders: string[] = [];
-                for (let i = 0; i < listElements.length; i++) {
-                    const text = listElements[i].textContent?.replace(
-                        /[^а-яА-Я]/g,
-                        '',
-                    );
-                    switch (text) {
-                    case 'Чоловкам':
-                        listOfGenders.push('man');
-                        break;
-                    case 'Жнкам':
-                        listOfGenders.push('woman');
-                        break;
-                    case 'Дтям':
-                        listOfGenders.push('child');
-                        break;
-                    }
-                }
-                return listOfGenders;
-            },
-        );
-
-        await wait(1000);
-        switch (userData.category) {
-        case 'man':
-            switch (categories.indexOf('man')) {
-            case 0:
-                await page?.click('.jqTLpt button:nth-child(2)');
-                break;
-            case -1:
-                break;
-            }
-            await page.click('.BuVhpF');
-            break;
-        case 'woman':
-            switch (categories.indexOf('woman')) {
-            case 1:
-                await page?.click('.jqTLpt button:nth-child(3)');
-                break;
-            case 0:
-                await page?.click('.jqTLpt button:nth-child(2)');
-                break;
-            case -1:
-                break;
-            }
-            await page.click('.BuVhpF');
-            break;
-        case 'child':
-            switch (categories.indexOf('child')) {
-            case 2:
-                await page?.click('.jqTLpt button:nth-child(4)');
-                break;
-            case 1:
-                await page?.click('.jqTLpt button:nth-child(3)');
-                break;
-            case 0:
-                await page?.click('.jqTLpt button:nth-child(2)');
-                break;
-            case -1:
-                break;
-            }
-        }
+        
         await wait(2000);
+        
+        await page.click(SUBMIT_BUTTON);
+        
+        await wait(1000);
+
+        await page.click(RESULT_BUTTON);
+        
+        await wait(4000);
+        
+        await page.click(ALLOW_COOKIES);
+        
+        const saleBanner = await page.$(CLOSE_SALE_BANNER);
+        
+        if(saleBanner)  await page.$(CLOSE_SALE_BANNER);
+        
+        
+        const items: itemLinks[] = [];
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const elements = await page.$$('.it25hX');
-            const priceElements = await page.$$('.loPig4');
-            const images = await page.$$('.Wi5B_k img');
+            
+            const linkElements = await page.$$(LINK);
+            const priceElements = await page.$$(PRICE);
+            const imageElements = await page.$$(IMAGE);
 
-            for (let i = 0; i < elements.length; i++) {
-                const element = elements[i];
-                const priceElement = priceElements[i];
-                const image = images[i];
+            const availabilityOfproducts = await page.$$(CHECK_PRODUCT);
 
-                const text = await image.evaluate(
-                    (el: Element) => el.getAttribute('alt')?.toLowerCase(),
+            for (let i = 0; i < linkElements.length; i++) {
+                    
+                const productLink = linkElements[i];
+                const productPrice = priceElements[i];
+                const productImage = imageElements[i];
+                const availabilityOfproduct = availabilityOfproducts[i];
+                    
+                const modelName = await productLink.$(GET_MODEL_NAME);
+
+                  
+                if (!modelName) {
+                        
+                    await browser.close();
+                    return null;
+                    
+                }
+                    
+                const siteModelName = await modelName?.evaluate((el: Element): string => el.textContent?.toLowerCase().trim() || '');
+                
+                const checkAvaliability = await availabilityOfproduct.$(
+                    PRODUCT_AVAILABILITY,
                 );
 
-                const model = userData.model.toLowerCase();
-                let modelIndex = 0;
-
-                if (text) {
-                    for (const char of text) {
-                        if (
-                            modelIndex < model.length &&
-                            char === model[modelIndex]
-                        ) {
-                            modelIndex++;
-                        }
-                    }
-                }
-
-                let modelName = false;
-                modelIndex === model.length ? (modelName = true) : '';
-
-                if (modelName) {
-                    const link = await element.evaluate(
-                        (el: Element): string | null => el.getAttribute('href'),
+                if ((siteModelName.includes(userModelName) ||
+                    userModelName.includes(siteModelName)) && 
+                    !checkAvaliability) {
+                        
+                    const link = await productLink.$eval(
+                        GET_LINK,
+                        (el: Element): string | null =>
+                            el.getAttribute('href'),
                     );
 
-                    const imageElement = await image.evaluate(
-                        (el: Element): string | null => el.getAttribute('src'),
+                    const image = await productImage.evaluate(
+                        (el: Element): string | null =>
+                            el.getAttribute('src'),
                     );
 
-                    const priceOld = await priceElement.$('.MeSmTt');
-
-                    const priceNew = await priceElement.$('.EGoTsG');
-                    let priceModel: string | undefined = '';
+                    const priceOld = await productPrice.$(PRICE_OLD);
+                    const priceNew = await productPrice.$(PRICE_NEW);
+                        
+                    let modelPrice: string | undefined = '';
+                        
                     if (priceNew === null) {
-                        priceModel = await priceOld?.evaluate(
+                            
+                        modelPrice = await priceOld?.evaluate(
                             (el: Element): string | undefined =>
                                 el.textContent?.replace(/\D/g, ''),
                         );
+                        
                     } else {
-                        priceModel = await priceElement.$eval(
-                            '.MeSmTt',
+                            
+                        modelPrice = await priceNew.evaluate(
                             (el: Element): string | undefined =>
                                 el.textContent?.replace(/\D/g, ''),
                         );
                     }
 
-                    itemsLinks = {
-                        link: 'https://megasport.ua' + link,
-                        price: priceModel,
-                        image: imageElement,
+                    const itemLinks: itemLinks = {
+                        link: link,
+                        price: modelPrice,
+                        image: image,
                     };
-                    await file('write', itemsLinks);
+                    
+                    items.push(itemLinks);
                 }
             }
-            const nextButton = await page.$(
-                '#js--root > main > section > div > div.gMgNGc > div > div.Fkfp3V > div.zmYnwY > div.qjmBYR > button',
-            );
-            if (nextButton) {
-                await page.click(
-                    '#js--root > main > section > div > div.gMgNGc > div > div.Fkfp3V > div.zmYnwY > div.qjmBYR > button',
-                );
+
+            const nextButton = await page.$(NEXT_BUTTON);
+            const productAvailability = await page.$(PRODUCT_AVAILABILITY);
+            
+            if (nextButton && !productAvailability) {
+                
+                if(saleBanner) await page.$(CLOSE_SALE_BANNER);
+                
+                await wait(1500);
+                
+                await page.click(NEXT_BUTTON);
+            
             } else {
-                logger.info('The operation was completed successfully in site8.js');
+                
                 await browser.close();
                 break;
+            
             }
         }
+
+        const resultS = await dbSetValues(key,items);
+       
+        logger.info(OPERATION_HAS_BEEN_SUCCESSFUL);
+        
+        return resultS;
     }
 }
-export const megasport = new MegaSport();
+
+export const intertop = new Intertop();
+
