@@ -93,8 +93,9 @@ class NewBalance implements ScraperInterface {
                         el.textContent?.toLowerCase().trim() || '',
                 );
                 
-                if (siteModelName.includes(userModelName) ||
-                    userModelName.includes(siteModelName)) {
+                const matching = userModelName.split(' ').every(word => siteModelName.split(' ').includes(word));
+                
+                if (matching) {
                     
                     const link = await productLink.evaluate(
                         (el: Element): string => (el as HTMLAnchorElement).href,

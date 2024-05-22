@@ -18,6 +18,7 @@ export const APPLY_FILTER = '.btn--filtersSubmit';
 export const CLOSE_SALE_BANNER = 'body > div.modal > div > div > div.Modal__close__C40RR > i';
 export const OPERATION_HAS_BEEN_SUCCESSFUL = 'The operation has been successful in site5';
 export const NOT_FOUND_MODEL = 'According to the search results, nothing was found in site5, your request:';
+export const MODEL_NAME = '.ProductItem__productCardName__DCKIH';
 
 export const GENDER_SELECTORS: Record<string,string> = {
     man:MAN_GENDER,

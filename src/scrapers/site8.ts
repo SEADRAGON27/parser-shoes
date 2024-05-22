@@ -130,10 +130,10 @@ class Intertop implements ScraperInterface {
                 const checkAvaliability = await availabilityOfproduct.$(
                     PRODUCT_AVAILABILITY,
                 );
-
-                if ((siteModelName.includes(userModelName) ||
-                    userModelName.includes(siteModelName)) && 
-                    !checkAvaliability) {
+                
+                const matching = userModelName.split(' ').every(word => siteModelName.split(' ').includes(word));
+                
+                if (matching && !checkAvaliability) {
                         
                     const link = await productLink.$eval(
                         GET_LINK,

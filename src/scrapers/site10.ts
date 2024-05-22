@@ -29,6 +29,8 @@ class PRM implements ScraperInterface {
         
         if(productAvailabilityOnTheWebsite) return null;
         
+        if(userData.gender == 'child') return null;
+        
         const userModelName = userData.model.toLowerCase().trim();
         
         const browser = await puppeteer.launch({ headless: true });
@@ -90,8 +92,9 @@ class PRM implements ScraperInterface {
                     (el: Element): string  => el.getAttribute('alt')?.toLowerCase().trim() || ''
                 );
                 
-                if(siteModelName.includes(userModelName) ||
-                   userModelName.includes(siteModelName)){
+                const matching = userModelName.split(' ').every(word => siteModelName.split(' ').includes(word));
+                
+                if(matching){
                 
                     const image = await productImages?.evaluate(
                         (el: Element): string | null => el.getAttribute('srcset'),
@@ -126,7 +129,6 @@ class PRM implements ScraperInterface {
                     }
                 
                     const imageMod = image?.split(/\s1x,/)[0];
-                
                     const itemsLinks: itemLinks = {
                         link: URL + link,
                         price: productPrice,

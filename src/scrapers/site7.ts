@@ -151,10 +151,10 @@ class MegaSport implements ScraperInterface {
                 const siteModelName = await productImage.evaluate(
                     (el: Element): string => el.getAttribute('alt')?.toLowerCase().trim() || '',
                 );
-
+                
+                const matching = userModelName.split(' ').every(word => siteModelName.split(' ').includes(word));
                
-                if (siteModelName.includes(userModelName) ||
-                    userModelName.includes(siteModelName)) {
+                if (matching) {
                     
                     const link = await productLink.evaluate(
                         (el: Element): string | null => el.getAttribute('href'),

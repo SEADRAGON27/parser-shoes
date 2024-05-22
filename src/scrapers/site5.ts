@@ -4,7 +4,7 @@ import { itemLinks } from '../utils/interfaces/itemsLinks.interface.js';
 import { ScraperInterface } from '../utils/interfaces/siteScraper.interface.js';
 import { wait } from '../utils/wait.js';
 import { logger } from '../logs/logger.js';
-import { ALLOW_COOKIES, APPLY_FILTER, CLOSE_SALE_BANNER, FILTER_BUTTON, GENDER_SELECTORS, IMAGE, LINK, NEXT_BUTTON, NOT_FOUND_MODEL, OPEN_CATEGORY_FILTER, OPERATION_HAS_BEEN_SUCCESSFUL, PRICE, PRICE_NEW, PRICE_OLD, RESULT_BUTTON, SEARCH_STRING, SELECT_CATEGORY, URL} from '../constants/site5.js';
+import { ALLOW_COOKIES, APPLY_FILTER, CLOSE_SALE_BANNER, FILTER_BUTTON, GENDER_SELECTORS, IMAGE, LINK, MODEL_NAME, NEXT_BUTTON, NOT_FOUND_MODEL, OPEN_CATEGORY_FILTER, OPERATION_HAS_BEEN_SUCCESSFUL, PRICE, PRICE_NEW, PRICE_OLD, RESULT_BUTTON, SEARCH_STRING, SELECT_CATEGORY, URL} from '../constants/site5.js';
 import { dbGetValue, dbGetValues } from '../db/dbGet.js';
 import { dbSetValue, dbSetValues } from '../db/dbSet.js';
 import { NOT_FOUND } from '../constants/db.js';
@@ -26,6 +26,8 @@ class Answear implements ScraperInterface {
         }
         
         if(productAvailabilityOnTheWebsite) return null;
+        
+        const userModelName = userData.model.toLowerCase().trim();
         
         const browser = await puppeteer.launch({ headless: true });
 
@@ -107,52 +109,62 @@ class Answear implements ScraperInterface {
             const linkElements = await page.$$(LINK);
             const priceElements = await page.$$(PRICE);
             const imageElements = await page.$$(IMAGE);
+            const modelNameElements = await page.$$(MODEL_NAME);
             
             for (let i = 0; i < linkElements.length; i++) {
                 
+                const modelName = modelNameElements[i];
                 const productLink = linkElements[i];
                 const productPrice = priceElements[i];
                 const productImage = imageElements[i];
 
-                const link = await productLink.evaluate(
-                    (el: Element): string | null => el.getAttribute('href'),
+                const siteModelName = await modelName.evaluate(
+                    (el: Element): string => el.textContent?.toLowerCase().trim() || '',
                 );
-
-                const image = await productImage.evaluate(
-                    (el: Element): string | null => el.getAttribute('srcset'),
-                );
-
-                const priceOld = await productPrice?.$(PRICE_OLD);
-                const priceNew = await productPrice?.$(PRICE_NEW);
-                    
-                let modelPrice: string | undefined = '';
-                    
-                if (priceNew === null) {
-                    
-                    modelPrice = await priceOld?.evaluate(
-                        (el: Element): string | undefined =>
-                            el.textContent?.replace(/\D/g, ''),
-                    );
                 
-                } else {
-                    
-                    modelPrice = await priceNew?.evaluate(
-                        (el: Element): string | undefined =>
-                            el.textContent?.replace(/\D/g, ''),
-                    );
+                const matching = userModelName.split(' ').every(word => siteModelName.split(' ').includes(word));
                 
+                if (matching) {
+                
+                    const link = await productLink.evaluate(
+                        (el: Element): string | null => el.getAttribute('href'),
+                    );
+
+                    const image = await productImage.evaluate(
+                        (el: Element): string | null => el.getAttribute('srcset'),
+                    );
+
+                    const priceOld = await productPrice?.$(PRICE_OLD);
+                    const priceNew = await productPrice?.$(PRICE_NEW);
+                    
+                    let modelPrice: string | undefined = '';
+                    
+                    if (priceNew === null) {
+                    
+                        modelPrice = await priceOld?.evaluate(
+                            (el: Element): string | undefined =>
+                                el.textContent?.replace(/\D/g, ''),
+                        );
+                
+                    } else {
+                    
+                        modelPrice = await priceNew?.evaluate(
+                            (el: Element): string | undefined =>
+                                el.textContent?.replace(/\D/g, ''),
+                        );
+                
+                    }
+                
+                    const imageMod = image?.split(/\s1x,/)[0];
+                    const itemLinks: itemLinks = {
+                        link: URL + link,
+                        price: modelPrice,
+                        image: imageMod,
+                    };
+                
+                    items.push(itemLinks);
                 }
-                
-                const imageMod = image?.split(/\s1x,/)[0];
-                const itemLinks: itemLinks = {
-                    link: URL + link,
-                    price: modelPrice,
-                    image: imageMod,
-                };
-                
-                items.push(itemLinks);
             }
-        
             
             const nextButton = await page.$(
                 NEXT_BUTTON,

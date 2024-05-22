@@ -29,9 +29,11 @@ export class Nike implements ScraperInterface {
         
         if(productAvailabilityOnTheWebsite) return null;
         
+        if(userData.gender == 'child') return null;
+        
         const userModelName = userData.model.toLowerCase().trim();
         
-        const browser = await puppeteer.launch({ headless: false });
+        const browser = await puppeteer.launch({ headless: true });
         
         const page = await browser.newPage();
         
@@ -83,8 +85,9 @@ export class Nike implements ScraperInterface {
                     (el: Element): string => el.textContent?.toLowerCase().trim() || '',
                 );
                 
-                if (siteModelName.includes(userModelName) ||
-                    userModelName.includes(siteModelName)) {
+                const matching = userModelName.split(' ').every(word => siteModelName.split(' ').includes(word));
+                
+                if (matching) {
                     
                     const image = await productImage.evaluate(
                         (el: Element): string | null => el.getAttribute('src'),

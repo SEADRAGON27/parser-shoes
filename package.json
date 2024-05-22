@@ -4,9 +4,9 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "node built/server.js",
-    "built-windows": "tsc && xcopy src\\client\\views  built\\client\\views /e && xcopy src\\*.json  built /e && xcopy src\\*.log  built /e",
-    "built-linux-mac": "tsc && cp -r src/client/views built/client/views && cp -r src/*.json built && cp -r src/*.log built",
+    "start": "node built/scrapers/site10.js",
+    "built-windows": "tsc && robocopy src\\client\\views built\\client\\views /e /xf *.ts && xcopy src\\*.log built /e",
+    "built-linux-mac": "tsc && rsync -av --exclude='*.ts' src/client/views/ built/client/views/ && cp -r src/*.log built",
     "lint": "eslint --ext .ts src/**/*.ts",
     "lint:fix": "prettier --write \"**/*.ts\""
   },
